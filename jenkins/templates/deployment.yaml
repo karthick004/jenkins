@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-jenkins
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: jenkins-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins-server
+  template:
+    metadata:
+      labels:
+        app: jenkins-server
+    spec:
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 0
+      serviceAccountName: {{ .Values.controller.serviceAccount.name }}
+      containers:
+        - name: jenkins
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: httpport
+              containerPort: 8080
+            - name: jnlpport
+              containerPort: 50000
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          volumeMounts:
+            - name: jenkins-data
+              mountPath: /var/jenkins_home
+          resources:
+            {{- toYaml .Values.controller.resources | nindent 12 }}
+        {{- if .Values.dind.enabled }}
+        - name: dind
+          image: {{ .Values.dind.image }}
+          securityContext:
+            privileged: {{ .Values.dind.privileged }}
+          volumeMounts:
+            - name: docker-graph-storage
+              mountPath: /var/lib/docker
+        {{- end }}
+      volumes:
+        - name: jenkins-data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-pv-claim
+        {{- if .Values.dind.enabled }}
+        - name: docker-graph-storage
+          emptyDir: {}
+        {{- end }}

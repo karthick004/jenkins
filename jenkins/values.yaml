@@ -1,0 +1,38 @@
+# Jenkins Configuration
+image:
+  repository: jenkins/jenkins
+  tag: lts
+  pullPolicy: IfNotPresent
+
+controller:
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
+
+  service:
+    type: LoadBalancer
+    port: 8080
+    targetPort: 8080
+    nodePort: 32000
+
+  serviceAccount:
+    create: true
+    name: jenkins-admin
+
+# Storage Configuration
+persistence:
+  enabled: true
+  storageClass: "kar-storage"
+  size: 10Gi
+  accessMode: ReadWriteOnce
+  localPath: "/mnt"
+
+# Docker-in-Docker Configuration
+dind:
+  enabled: true
+  image: docker:dind
+  privileged: true
